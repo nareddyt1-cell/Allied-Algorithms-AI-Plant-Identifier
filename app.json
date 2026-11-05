@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Multiflora Scanner",
+    "slug": "multiflora-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Multiflora Scanner to photograph plants."
+        }
+      ]
+    ]
+  }
+}
