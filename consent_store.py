@@ -43,6 +43,7 @@ def init_db() -> None:
             )
         """)
         db.execute("CREATE INDEX IF NOT EXISTS idx_sightings_consent ON sightings(consent_id)")
+        _purge_expired_sightings(db)
 
 
 def create_consent(consent_id: str, map_opt_in: bool, sharing_opt_in: bool,
@@ -57,10 +58,31 @@ def create_consent(consent_id: str, map_opt_in: bool, sharing_opt_in: bool,
         )
 
 
+def _purge_expired_sightings(db: sqlite3.Connection) -> None:
+    """Remove location records whose consent has expired; retain consent audit metadata."""
+    now = utc_now()
+    rows = db.execute("SELECT consent_id, expires_at FROM consents WHERE revoked_at IS NULL").fetchall()
+    expired_ids = []
+    for row in rows:
+        expiry = datetime.fromisoformat(row["expires_at"])
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry <= now:
+            expired_ids.append(row["consent_id"])
+    if expired_ids:
+        db.executemany("DELETE FROM sightings WHERE consent_id = ?", [(item,) for item in expired_ids])
+
+
 def get_consent(consent_id: str) -> dict[str, Any] | None:
     with _connect() as db:
         row = db.execute("SELECT * FROM consents WHERE consent_id = ?", (consent_id,)).fetchone()
-    return dict(row) if row else None
+        if row:
+            expiry = datetime.fromisoformat(row["expires_at"])
+            if expiry.tzinfo is None:
+                expiry = expiry.replace(tzinfo=timezone.utc)
+            if expiry <= utc_now():
+                db.execute("DELETE FROM sightings WHERE consent_id = ?", (consent_id,))
+        return dict(row) if row else None
 
 
 def save_sighting(consent_id: str, species: str, latitude: float,
