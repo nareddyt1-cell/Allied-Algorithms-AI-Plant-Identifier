@@ -1,0 +1,110 @@
+"""SQLite persistence for explicit, time-limited location consent.
+
+The consent_id is a bearer capability in this prototype. Production deployments
+must bind consent and sighting records to an authenticated user account.
+"""
+import os
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+DATABASE_PATH = os.getenv("DATABASE_PATH", "data/consent.db")
+
+
+def _connect() -> sqlite3.Connection:
+    path = Path(DATABASE_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(str(path), timeout=10)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def init_db() -> None:
+    with _connect() as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS consents (
+                consent_id TEXT PRIMARY KEY,
+                map_display_opt_in INTEGER NOT NULL,
+                environmental_sharing_opt_in INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                revoked_at TEXT
+            )
+        """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS sightings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                consent_id TEXT NOT NULL REFERENCES consents(consent_id),
+                species TEXT NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        db.execute("CREATE INDEX IF NOT EXISTS idx_sightings_consent ON sightings(consent_id)")
+
+
+def create_consent(consent_id: str, map_opt_in: bool, sharing_opt_in: bool,
+                   created_at: str, expires_at: str) -> None:
+    with _connect() as db:
+        db.execute(
+            """INSERT INTO consents
+               (consent_id, map_display_opt_in, environmental_sharing_opt_in,
+                created_at, expires_at, revoked_at)
+               VALUES (?, ?, ?, ?, ?, NULL)""",
+            (consent_id, int(map_opt_in), int(sharing_opt_in), created_at, expires_at),
+        )
+
+
+def get_consent(consent_id: str) -> dict[str, Any] | None:
+    with _connect() as db:
+        row = db.execute("SELECT * FROM consents WHERE consent_id = ?", (consent_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def save_sighting(consent_id: str, species: str, latitude: float,
+                  longitude: float, created_at: str) -> int:
+    with _connect() as db:
+        cursor = db.execute(
+            """INSERT INTO sightings
+               (consent_id, species, latitude, longitude, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (consent_id, species, latitude, longitude, created_at),
+        )
+        return int(cursor.lastrowid)
+
+
+def list_sightings(consent_id: str) -> list[dict[str, Any]]:
+    with _connect() as db:
+        rows = db.execute(
+            """SELECT id, species, latitude, longitude, created_at
+               FROM sightings WHERE consent_id = ? ORDER BY created_at DESC""",
+            (consent_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def revoke_consent(consent_id: str, revoked_at: str) -> bool:
+    with _connect() as db:
+        cursor = db.execute(
+            "UPDATE consents SET revoked_at = ? WHERE consent_id = ? AND revoked_at IS NULL",
+            (revoked_at, consent_id),
+        )
+        if cursor.rowcount:
+            db.execute("DELETE FROM sightings WHERE consent_id = ?", (consent_id,))
+            return True
+    return False
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def is_active(consent: dict[str, Any], now: datetime | None = None) -> bool:
+    if consent.get("revoked_at"):
+        return False
+    expiry = datetime.fromisoformat(consent["expires_at"])
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    return expiry > (now or utc_now())
