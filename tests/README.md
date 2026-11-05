@@ -1,0 +1,1 @@
+Run the backend test suite with `pip install pytest` followed by `pytest -q`. Tests use a temporary SQLite database and do not call Pl@ntNet.
