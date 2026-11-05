@@ -1,14 +1,16 @@
+
 {
   "expo": {
-    "name": "Multiflora Scanner",
-    "slug": "multiflora-scanner",
+    "name": "Allied Algorithms Plant Identifier",
+    "slug": "allied-algorithms-plant-identifier",
     "version": "1.0.0",
     "orientation": "portrait",
+    "userInterfaceStyle": "light",
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Multiflora Scanner to photograph plants."
+          "cameraPermission": "Allow Allied Algorithms to photograph plants."
         }
       ]
     ]
