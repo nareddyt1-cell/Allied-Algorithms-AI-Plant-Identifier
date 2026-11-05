@@ -1,0 +1,34 @@
+
+# Allied Algorithms AI Plant Identifier
+
+AI-powered invasive plant identification application.
+
+## Features
+
+- Plant identification using Pl@ntNet.
+- Multiflora Rose candidate detection.
+- Mobile camera integration.
+- FastAPI backend.
+- Render cloud deployment.
+- Future Vision Transformer integration.
+
+## Backend
+
+Built using Python and FastAPI.
+
+## Mobile
+
+Built using React Native and Expo.
+
+## Identification API
+
+Pl@ntNet API:
+https://my.plantnet.org/
+
+## Planned Features
+
+- Specialized Multiflora Rose Vision Transformer.
+- Allied Algorithms invasive plant removal recommendations.
+- GPS-based invasive species reporting.
+- Environmental organization notifications.
+- Interactive invasive species map.
