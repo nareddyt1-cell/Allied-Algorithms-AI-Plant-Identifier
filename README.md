@@ -66,9 +66,9 @@ Use `POST /consent/revoke` with the consent ID to revoke and delete associated s
 - Consent IDs are bearer capabilities, not user authentication. Anyone possessing one can exercise its permissions. Before public production use, bind consent and sighting records to authenticated user accounts, add rate limiting, audit controls, and secure transport.
 - `device_location_permission_confirmed` is a client assertion; the backend cannot independently verify the mobile operating system's permission state. The mobile app must enforce the OS permission flow and never submit coordinates after denial.
 - Environmental-group email delivery is implemented through SMTP but remains disabled until `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, and `ENVIRONMENTAL_GROUP_EMAILS` are configured in Render. `SMTP_USE_SSL` defaults to `true`; set it to `false` for STARTTLS providers. Failed or unconfigured delivery does not discard the user's saved sighting; the response reports `sent`, `failed`, or `not_configured`.
-- `GET /sightings` without a consent ID returns the community map. It includes only active, non-revoked consents with `map_display_opt_in=true`; public coordinates are rounded to three decimal places. `GET /sightings?consent_id=...` retains the original consent-scoped behavior.
+- `GET /sightings/public` is the frontend community-map feed. It returns exactly `species`, `latitude`, `longitude`, and `reported_at`; it never exposes consent IDs or user/device identifiers. It includes only active, non-revoked consents with `map_display_opt_in=true`; public coordinates are rounded to three decimal places. `GET /sightings?consent_id=...` retains the consent-scoped behavior.
 - The net-cutter guidance is general information, not a replacement for manufacturer instructions or qualified land-manager advice.
-- The ViT classifier, trained weights, mapping UI, specialist email integration, and notification service are not part of this backend change.
+- The ViT classifier and trained weights are not present. Identification uses Pl@ntNet's `/v2/identify/all` API. Candidate scores are returned by Pl@ntNet and sorted descending; Multiflora Rose is flagged when a candidate's scientific name exactly matches `Rosa multiflora`. This is a candidate signal, not a validated guarantee of reliable identification. No local ViT inference is performed.
 
 ## API endpoints
 
@@ -76,7 +76,7 @@ Use `POST /consent/revoke` with the consent ID to revoke and delete associated s
 - `POST /scan` (multipart field: `file`)
 - `POST /consent`
 - `POST /sightings`
-- `GET /sightings` (community map; public opt-ins only)
+- `GET /sightings/public` (community map; public opt-ins only)
 - `GET /sightings?consent_id=...` (consent-scoped view)
 - `POST /consent/revoke`
 
