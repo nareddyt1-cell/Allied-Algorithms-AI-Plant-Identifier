@@ -4,6 +4,8 @@ from io import BytesIO
 
 import requests
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 from pydantic import BaseModel, Field
 from PIL import Image, UnidentifiedImageError
 
@@ -31,12 +33,13 @@ def startup() -> None:
     init_db()
 
 
-@app.get("/")
+FRONTEND_INDEX = Path(__file__).resolve().parent / "frontend" / "index.html"
+
+
+@app.get("/", include_in_schema=False)
 def home():
-    return {
-        "application": "Allied Algorithms AI Plant Identifier",
-        "status": "online",
-    }
+    """Serve the A.I.M. website from the same origin as the API."""
+    return FileResponse(FRONTEND_INDEX, media_type="text/html")
 
 
 @app.get("/health")
