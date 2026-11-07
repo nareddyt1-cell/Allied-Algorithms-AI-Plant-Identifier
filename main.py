@@ -9,7 +9,8 @@ from PIL import Image, UnidentifiedImageError
 
 from plantnet_client import identify_with_plantnet
 from consent_store import (
-    create_consent, get_consent, init_db, is_active, list_sightings,
+    claim_notification, create_consent, get_consent, init_db, is_active,
+    list_public_sightings, list_sightings, mark_notification,
     revoke_consent, save_sighting, utc_now,
 )
 from cutter_recommendations import get_multiflora_rose_guidance
@@ -186,15 +187,19 @@ def submit_sighting(request: SightingRequest):
     )
     notification_status = "not_authorized"
     if consent["environmental_sharing_opt_in"]:
-        notification = send_environmental_notification(
-            species="Rosa multiflora",
-            latitude=request.latitude,
-            longitude=request.longitude,
-            created_at=created_at,
-            sighting_id=sighting_id,
-            expires_at=consent["expires_at"],
-        )
-        notification_status = notification["status"]
+        if claim_notification(sighting_id, utc_now().isoformat()):
+            notification = send_environmental_notification(
+                species="Rosa multiflora",
+                latitude=request.latitude,
+                longitude=request.longitude,
+                created_at=created_at,
+                sighting_id=sighting_id,
+                expires_at=consent["expires_at"],
+            )
+            notification_status = notification["status"]
+            mark_notification(sighting_id, notification_status, utc_now().isoformat())
+        else:
+            notification_status = "duplicate_skipped"
     return {
         "sighting_id": sighting_id,
         "stored": True,
@@ -205,6 +210,23 @@ def submit_sighting(request: SightingRequest):
             "Sighting stored for the uses selected in consent. "
             + ("Environmental-group email notification status: " + notification_status + "." if consent["environmental_sharing_opt_in"] else "No environmental-group notification was authorized.")
         ),
+    }
+
+
+@app.get("/sightings/public")
+def get_public_sightings():
+    """Public map feed; expose only map-authorized, active sightings."""
+    rows = list_public_sightings()
+    return {
+        "sightings": [
+            {
+                "species": row["species"],
+                "latitude": row["latitude"],
+                "longitude": row["longitude"],
+                "reported_at": row["created_at"],
+            }
+            for row in rows
+        ]
     }
 
 
