@@ -42,6 +42,14 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             )
         """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS notification_deliveries (
+                sighting_id INTEGER PRIMARY KEY REFERENCES sightings(id) ON DELETE CASCADE,
+                status TEXT NOT NULL,
+                attempted_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
         db.execute("CREATE INDEX IF NOT EXISTS idx_sightings_consent ON sightings(consent_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_consents_map_expiry ON consents(map_display_opt_in, expires_at, revoked_at)")
         _purge_expired_sightings(db)
@@ -127,6 +135,26 @@ def list_public_sightings() -> list[dict[str, Any]]:
             (now,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def claim_notification(sighting_id: int, attempted_at: str) -> bool:
+    """Atomically reserve one notification attempt per sighting."""
+    with _connect() as db:
+        cursor = db.execute(
+            """INSERT OR IGNORE INTO notification_deliveries
+               (sighting_id, status, attempted_at, updated_at)
+               VALUES (?, ?, ?, ?)""",
+            (sighting_id, "sending", attempted_at, attempted_at),
+        )
+        return cursor.rowcount == 1
+
+
+def mark_notification(sighting_id: int, status: str, updated_at: str) -> None:
+    with _connect() as db:
+        db.execute(
+            "UPDATE notification_deliveries SET status = ?, updated_at = ? WHERE sighting_id = ?",
+            (status, updated_at, sighting_id),
+        )
 
 
 def revoke_consent(consent_id: str, revoked_at: str) -> bool:
