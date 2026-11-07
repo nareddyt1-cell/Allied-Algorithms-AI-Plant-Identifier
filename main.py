@@ -13,6 +13,10 @@ from consent_store import (
     revoke_consent, save_sighting, utc_now,
 )
 from cutter_recommendations import get_multiflora_rose_guidance
+from email_notifier import send_environmental_notification
+import logging
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Allied Algorithms AI Plant Identifier",
@@ -172,34 +176,49 @@ def submit_sighting(request: SightingRequest):
 
     # Coordinates must be explicitly submitted by the client after its permission flow.
     # The backend does not query device GPS or infer coordinates from scan metadata.
+    created_at = utc_now().isoformat()
     sighting_id = save_sighting(
         request.consent_id,
         "Rosa multiflora",
         request.latitude,
         request.longitude,
-        utc_now().isoformat(),
+        created_at,
     )
+    notification_status = "not_authorized"
+    if consent["environmental_sharing_opt_in"]:
+        notification = send_environmental_notification(
+            species="Rosa multiflora",
+            latitude=request.latitude,
+            longitude=request.longitude,
+            created_at=created_at,
+            sighting_id=sighting_id,
+            expires_at=consent["expires_at"],
+        )
+        notification_status = notification["status"]
     return {
         "sighting_id": sighting_id,
         "stored": True,
         "map_display_enabled": bool(consent["map_display_opt_in"]),
         "environmental_sharing_authorized": bool(consent["environmental_sharing_opt_in"]),
-        "environmental_notification_status": (
-            "not_configured" if consent["environmental_sharing_opt_in"] else "not_authorized"
-        ),
+        "environmental_notification_status": notification_status,
         "message": (
-            "Sighting stored only for the uses selected in consent. "
-            "Environmental notifications are not yet integrated."
+            "Sighting stored for the uses selected in consent. "
+            + ("Environmental-group email notification status: " + notification_status + "." if consent["environmental_sharing_opt_in"] else "No environmental-group notification was authorized.")
         ),
     }
 
 
 @app.get("/sightings")
-def get_sightings(consent_id: str):
-    consent = _active_consent(consent_id)
-    if not consent["map_display_opt_in"]:
-        raise HTTPException(status_code=403, detail="Map display was not authorized.")
-    return {"sightings": list_sightings(consent_id)}
+def get_sightings(consent_id: str | None = None):
+    # With a consent ID, return that owner's consent-authorized map entries.
+    # Without one, return the community map: only active, non-revoked consents
+    # that explicitly opted into public map display are included.
+    if consent_id:
+        consent = _active_consent(consent_id)
+        if not consent["map_display_opt_in"]:
+            raise HTTPException(status_code=403, detail="Map display was not authorized.")
+        return {"sightings": list_sightings(consent_id)}
+    return {"sightings": list_public_sightings()}
 
 
 @app.post("/consent/revoke")
