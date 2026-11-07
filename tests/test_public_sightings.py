@@ -12,12 +12,14 @@ def test_public_sightings_only_include_active_map_opt_ins(tmp_path, monkeypatch)
     past = (now - timedelta(seconds=1)).isoformat()
 
     consent_store.create_consent("public-map-token-00000001", True, False, created, future)
+    consent_store.create_consent("second-public-map-token-00000005", True, False, created, future)
     consent_store.create_consent("private-group-token-00000002", False, True, created, future)
     consent_store.create_consent("expired-map-token-00000003", True, False, created, past)
     consent_store.create_consent("revoked-map-token-00000004", True, False, created, future)
 
     for token, lat in [
         ("public-map-token-00000001", 41.12345),
+        ("second-public-map-token-00000005", 41.22345),
         ("private-group-token-00000002", 41.2),
         ("expired-map-token-00000003", 41.3),
         ("revoked-map-token-00000004", 41.4),
@@ -27,11 +29,11 @@ def test_public_sightings_only_include_active_map_opt_ins(tmp_path, monkeypatch)
     consent_store.revoke_consent("revoked-map-token-00000004", now.isoformat())
     results = consent_store.list_public_sightings()
 
-    assert len(results) == 1
-    assert results[0]["species"] == "Rosa multiflora"
-    assert results[0]["latitude"] == 41.123
-    assert results[0]["longitude"] == -73.346
-    assert set(results[0]) == {"id", "species", "latitude", "longitude", "created_at"}
+    assert len(results) == 2  # Reports from two independent consent records/users.
+    assert {row["latitude"] for row in results} == {41.123, 41.223}
+    assert all(row["species"] == "Rosa multiflora" for row in results)
+    assert all(row["longitude"] == -73.346 for row in results)
+    assert all(set(row) == {"id", "species", "latitude", "longitude", "created_at"} for row in results)
 
 
 def test_notification_claim_is_idempotent(tmp_path, monkeypatch):
