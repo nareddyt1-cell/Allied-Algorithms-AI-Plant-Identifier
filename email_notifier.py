@@ -31,21 +31,21 @@ def send_environmental_notification(
         message["From"] = sender
         message["To"] = ", ".join(recipients)
         message.set_content(
-        "A user explicitly authorized environmental-group sharing of this "
-        "Multiflora Rose sighting.\n\n"
-        f"Species: {species}\n"
-        f"Coordinates: {latitude:.6f}, {longitude:.6f}\n"
-        f"Submitted (UTC): {created_at}\n"
-        f"Consent expires (UTC): {expires_at}\n"
-        f"Sighting reference: {sighting_id}\n\n"
-        "Please handle these coordinates according to your organization's "
-        "privacy and conservation-data policies."
-    )
+            "A user explicitly authorized environmental-group sharing of this "
+            "Multiflora Rose sighting.\n\n"
+            f"Species: {species}\n"
+            f"Coordinates: {latitude:.6f}, {longitude:.6f}\n"
+            f"Submitted (UTC): {created_at}\n"
+            f"Consent expires (UTC): {expires_at}\n"
+            f"Sighting reference: {sighting_id}\n\n"
+            "Please handle these coordinates according to your organization's "
+            "privacy and conservation-data policies."
+        )
 
         port = int(os.getenv("SMTP_PORT", "465"))
         use_ssl = os.getenv("SMTP_USE_SSL", "true").lower() in {"1", "true", "yes"}
         timeout = float(os.getenv("SMTP_TIMEOUT_SECONDS", "12"))
-    try:
+
         if use_ssl:
             with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
                 smtp.login(username, password)
