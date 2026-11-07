@@ -7,6 +7,20 @@ services:
     envVars:
       - key: PLANTNET_API_KEY
         sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: ENVIRONMENTAL_GROUP_EMAILS
+        sync: false
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USE_SSL
+        value: "true"
       - key: DATABASE_PATH
         value: /var/data/consent.db
     disk:
