@@ -4,7 +4,7 @@ def test_root_serves_bundled_aim_frontend():
     response = main.home()
 
     assert response.media_type == "text/html"
-    assert response.path == str(main.FRONTEND_INDEX)
+    assert response.path == main.FRONTEND_INDEX
     assert main.FRONTEND_INDEX.is_file()
 
 
