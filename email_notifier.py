@@ -13,23 +13,24 @@ def send_environmental_notification(
     created_at: str, sighting_id: int, expires_at: str
 ) -> dict:
     """Send location only to configured group recipients after explicit opt-in."""
-    raw_recipients = os.getenv("ENVIRONMENTAL_GROUP_EMAILS", "")
-    recipients = [
-        address for _, address in getaddresses([raw_recipients])
-        if address and "@" in address
-    ]
-    host = os.getenv("SMTP_HOST", "").strip()
-    username = os.getenv("SMTP_USERNAME", "").strip()
-    password = os.getenv("SMTP_PASSWORD", "")
-    sender = os.getenv("SMTP_FROM_EMAIL", "").strip()
-    if not recipients or not host or not sender or not username or not password:
-        return {"status": "not_configured", "recipient_count": 0}
+    try:
+        raw_recipients = os.getenv("ENVIRONMENTAL_GROUP_EMAILS", "")
+        recipients = [
+            address for _, address in getaddresses([raw_recipients])
+            if address and "@" in address
+        ]
+        host = os.getenv("SMTP_HOST", "").strip()
+        username = os.getenv("SMTP_USERNAME", "").strip()
+        password = os.getenv("SMTP_PASSWORD", "")
+        sender = os.getenv("SMTP_FROM_EMAIL", "").strip()
+        if not recipients or not host or not sender or not username or not password:
+            return {"status": "not_configured", "recipient_count": 0}
 
-    message = EmailMessage()
-    message["Subject"] = f"A.I.M. Multiflora Rose sighting #{sighting_id}"
-    message["From"] = sender
-    message["To"] = ", ".join(recipients)
-    message.set_content(
+        message = EmailMessage()
+        message["Subject"] = f"A.I.M. Multiflora Rose sighting #{sighting_id}"
+        message["From"] = sender
+        message["To"] = ", ".join(recipients)
+        message.set_content(
         "A user explicitly authorized environmental-group sharing of this "
         "Multiflora Rose sighting.\n\n"
         f"Species: {species}\n"
@@ -41,9 +42,9 @@ def send_environmental_notification(
         "privacy and conservation-data policies."
     )
 
-    port = int(os.getenv("SMTP_PORT", "465"))
-    use_ssl = os.getenv("SMTP_USE_SSL", "true").lower() in {"1", "true", "yes"}
-    timeout = float(os.getenv("SMTP_TIMEOUT_SECONDS", "12"))
+        port = int(os.getenv("SMTP_PORT", "465"))
+        use_ssl = os.getenv("SMTP_USE_SSL", "true").lower() in {"1", "true", "yes"}
+        timeout = float(os.getenv("SMTP_TIMEOUT_SECONDS", "12"))
     try:
         if use_ssl:
             with smtplib.SMTP_SSL(host, port, timeout=timeout) as smtp:
