@@ -43,6 +43,7 @@ def init_db() -> None:
             )
         """)
         db.execute("CREATE INDEX IF NOT EXISTS idx_sightings_consent ON sightings(consent_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_consents_map_expiry ON consents(map_display_opt_in, expires_at, revoked_at)")
         _purge_expired_sightings(db)
 
 
@@ -103,6 +104,27 @@ def list_sightings(consent_id: str) -> list[dict[str, Any]]:
             """SELECT id, species, latitude, longitude, created_at
                FROM sightings WHERE consent_id = ? ORDER BY created_at DESC""",
             (consent_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_public_sightings() -> list[dict[str, Any]]:
+    """Return only active public-map opt-ins, with coordinates coarsened to ~100 m."""
+    with _connect() as db:
+        _purge_expired_sightings(db)
+        now = utc_now().isoformat()
+        rows = db.execute(
+            """SELECT s.id, s.species,
+                      ROUND(s.latitude, 3) AS latitude,
+                      ROUND(s.longitude, 3) AS longitude,
+                      s.created_at
+               FROM sightings AS s
+               JOIN consents AS c ON c.consent_id = s.consent_id
+               WHERE c.map_display_opt_in = 1
+                 AND c.revoked_at IS NULL
+                 AND c.expires_at > ?
+               ORDER BY s.created_at DESC""",
+            (now,),
         ).fetchall()
     return [dict(row) for row in rows]
 
